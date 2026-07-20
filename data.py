@@ -75,6 +75,17 @@ class sentence:
 
             return None
 
+    def tts_import(self):
+        #Tranksript
+        it_sentences = audio_tts.import_italian()
+        audio_tts.get_tts(it_sentences)
+
+        #Import
+        format_data = audio_tts.get_data_format()
+
+        for it, de, filename in format_data:
+            self.add(sentence=it, translation=de, wav_path=filename)
+
 
 class words:
     def __init__(self):
@@ -323,6 +334,9 @@ class words:
 
 # print(word.check_var("state", 0, "word"))
 # print(word.algo(10))
+
+#sentences = sentence()
+#sentences.tts_import()
 
 
 
