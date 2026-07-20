@@ -45,7 +45,7 @@ def tts(input,filename):
     )
 
     wave_file(f"{filename}.wav", base64.b64decode(interaction.output_audio.data))
-    print(f"tts: {i}")
+    print(f"tts: {filename}")
 
 def import_italian():
     #Satz Deutsch
@@ -99,7 +99,6 @@ def get_data_format():
 
     return list(combined)
 
-print(get_data_format())
 
 
 
