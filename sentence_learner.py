@@ -1,47 +1,88 @@
+import time
 import streamlit as st
-
 import data
 
 
-
+# --- Hilfsfunktionen ---
 def spacer(height_px):
     st.markdown(f'<div style="margin-top: {height_px}px;"></div>', unsafe_allow_html=True)
 
 
-sentences = data.sentence()
-
-# 1. Daten aus deiner get()-Funktion holen
-
+# --- Initialisierung ---
 if "eintragnummer" not in st.session_state:
     st.session_state.eintragnummer = 1
+if "is_playing" not in st.session_state:
+    st.session_state.is_playing = False
 
-eintrag = sentences.get(st.session_state.eintragnummer)
+sentences = data.sentence()
 
-if eintrag:
-    with st.container(border = True):
-        spacer(50)
-        st.write(f"** {eintrag['sentence']}**")
-        spacer(50)
+st.title("Lern-Playback")
 
-    with st.container(border = True):
-        spacer(50)
-        st.write(f"** {eintrag['translation']}**")
-        spacer(50)
+content_placeholder = st.empty()
 
-    audio_bytes = eintrag["audio"]
-    st.audio(audio_bytes, format="audio/wav")
+
+# --- Haupt-Anzeigelogik ---
+def render_eintrag(nr, use_autoplay=False):
+    eintrag = sentences.get(nr)
+    if eintrag:
+        with content_placeholder.container():
+            with st.container(border=True):
+                spacer(20)
+                st.write(f"### Eintrag {nr}")
+                st.write(f"**{eintrag['sentence']}**")
+                spacer(20)
+                st.write(f"**{eintrag['translation']}**")
+                spacer(20)
+
+            # Autoplay nur wenn explizit gewünscht
+            st.audio(eintrag["audio"], format="audio/wav", autoplay=use_autoplay)
+    else:
+        content_placeholder.error("Eintrag nicht gefunden!")
+
+
+# --- UI Steuerung ---
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    if st.button("Previous"):
+        st.session_state.is_playing = False  # Playback stoppen bei manueller Navigation
+        if st.session_state.eintragnummer > 1:
+            st.session_state.eintragnummer -= 1
+
+with col2:
+    if st.button("Next"):
+        st.session_state.is_playing = False  # Playback stoppen bei manueller Navigation
+        st.session_state.eintragnummer += 1
+
+with col3:
+    with st.popover("Playback Intervall"):
+        start_in = st.text_input("Startnummer", value=str(st.session_state.eintragnummer))
+        end_in = st.text_input("Endnummer", value=str(st.session_state.eintragnummer + 5))
+        start_button = st.button("Starten")
+
+# --- Playback Logik ---
+if start_button:
+    st.session_state.is_playing = True
+    try:
+        start_val = int(start_in)
+        end_val = int(end_in)
+
+        for i in range(start_val, end_val + 1):
+            st.session_state.eintragnummer = i
+            # Hier geben wir True für autoplay mit
+            render_eintrag(i, use_autoplay=True)
+            time.sleep(7)
+
+            # Abbruch prüfen, falls man zwischendurch manuell navigiert
+            if not st.session_state.is_playing:
+                break
+
+        st.session_state.is_playing = False
+        st.rerun()
+    except ValueError:
+        st.error("Bitte gültige Zahlen eingeben!")
 else:
-    st.error("Eintrag nicht gefunden!")
+    # Standard-Anzeige ohne Autoplay
+    render_eintrag(st.session_state.eintragnummer, use_autoplay=False)
 
-next_button = st.button("next")
-previous_button = st.button("previous")
-
-st.text(st.session_state.eintragnummer)
-
-if next_button:
-    st.session_state.eintragnummer += 1
-    st.rerun()
-
-if previous_button:
-    st.session_state.eintragnummer -= 1
-    st.rerun()
+st.sidebar.text(f"Aktuelle Nummer: {st.session_state.eintragnummer}")
