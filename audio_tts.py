@@ -3,9 +3,84 @@ import wave
 import base64
 import time
 import re
+from PIL import Image
+import ast
+
+class AI:
+    def __init__(self):
+        self.apikey = "AQ.Ab8RN6K-1fk10a9GayeBFs3rdLVlsf51qBF2F8iaC3DErbmtPw"
+        self.client = genai.Client(api_key=self.apikey)
+
+    def tts(self, input, filename):
+        interaction = self.client.interactions.create(
+            model="gemini-3.1-flash-tts-preview",
+            input=input,
+            response_format={"type": "audio"},
+            generation_config={
+                "speech_config": [
+                    {"voice": "Kore"}
+                ]
+            }
+        )
+
+        wave_file(f"{filename}.wav", base64.b64decode(interaction.output_audio.data))
+        print(f"tts: {filename}")
+
+    def gemma(self, prompt, image = None):
+
+        contents = [prompt]
+        if image:
+            contents.append(image)
+
+        response = self.client.models.generate_content(
+            model="gemini-flash-latest",
+            contents=contents
+        )
+        result = response.text.strip()
+        return result
+
+    def exe_text_ai(self, prompt):
+        response = self.client.models.generate_content(
+            model="gemini-flash-latest",
+            contents=prompt
+        )
+
+        return response.text
+
+    def get_text(self,word_list, lvl):
+        prompt = f"Schreibe einen interessanten, spannenden Text (ca 200 Wörter auf Italienisch auf {lvl} Level und baue folgende Wörter ein: {word_list}. Returne Ausschließlich den Text, in schön formatiert, dh sinnvolle absäzte"
+        response = self.exe_text_ai(prompt)
+
+        return response
 
 
-apikey = "AQ.Ab8RN6K-1fk10a9GayeBFs3rdLVlsf51qBF2F8iaC3DErbmtPw"
+
+
+
+    def prompt_vocab(self):
+        prompt = "[(Spalte1 Zeile1, Spalte2 Zeile2, Wortart,0,0), (Spalte1 Zeile2, Spalte2,Zeile2, Wortart,0,0) für alle Vokabeln]...Erstelle eine Liste aus Tuples, nach der Form: (Vokabel, Übersetzung, Wortart, 0, 0). REGELN: Ausschließlich die Liste, sonst kein anderer Text!"
+        return prompt
+
+    def get_vocab_image(self, image_name):
+        image = Image.open(image_name)
+
+        # 1. Den String vom Modell holen
+        text_result = self.gemma(self.prompt_vocab(), image=image)
+
+        # 2. Zur Sicherheit: Falls das Modell doch Markdown-Tags (```python) mitschickt, diese entfernen
+        text_result = text_result.replace("```python", "").replace("```", "").strip()
+
+        # 3. Den String in eine echte Python-Liste umwandeln
+        try:
+            vocab_list = ast.literal_eval(text_result)
+            return vocab_list
+        except Exception as e:
+            print(f"Fehler beim Umwandeln der Liste: {e}")
+            print(f"So sah der String aus:\n{text_result}")
+            return []
+
+
+
 
 
 
@@ -28,25 +103,6 @@ def wave_file(filename, pcm, channels=1, rate=24000, sample_width=2):
         wf.setframerate(rate)
         wf.writeframes(pcm)
 
-client = genai.Client(api_key=apikey)
-
-
-def tts(input,filename):
-
-    interaction = client.interactions.create(
-        model="gemini-3.1-flash-tts-preview",
-        input= input,
-        response_format={"type": "audio"},
-        generation_config={
-            "speech_config": [
-                {"voice": "Kore"}
-            ]
-        }
-    )
-
-    wave_file(f"{filename}.wav", base64.b64decode(interaction.output_audio.data))
-    print(f"tts: {filename}")
-
 def import_italian():
     #Satz Deutsch
     #Satz Italienisch
@@ -61,10 +117,30 @@ def import_italian():
         #print (returnlist)
 
 
+
+
     italian_sentences = [sublist[0] for sublist in returnlist[1::3]]
 
     return italian_sentences
 
+
+def it_import_from_textarea(text):
+
+    lines = text.splitlines()
+
+    # 2. Jede dritte Zeile ab Index 1 extrahieren
+    italian_sentences = lines[1::3]
+
+    return italian_sentences
+
+def de_import_from_textarea(text):
+
+    lines = text.splitlines()
+
+    # 2. Jede dritte Zeile ab Index 1 extrahieren
+    italian_sentences = lines[0::3]
+
+    return italian_sentences
 
 def import_german():
     # Satz Deutsch
@@ -86,7 +162,7 @@ def import_german():
 def get_tts(italian_sentences):
     #input: list
     for i in italian_sentences:
-        tts(i, clean_filename(i))
+        ai.tts(i, clean_filename(i))
         time.sleep(10)
 
 def get_data_format():
@@ -98,6 +174,7 @@ def get_data_format():
     combined = zip(import_italian(), import_german(),filenamelist)
 
     return list(combined)
+
 
 
 
