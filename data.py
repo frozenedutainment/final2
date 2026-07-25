@@ -12,6 +12,71 @@ class data:
 class sentence:
     def __init__(self):
         self.db = "data.db"
+        self.WordTable = "data_text"
+
+        self.conn = sqlite3.connect(self.db, check_same_thread=False)
+        self.cursor = self.conn.cursor()
+        self.setup()
+
+    def setup(self):
+        self.cursor.execute(f"""
+                CREATE TABLE IF NOT EXISTS {self.WordTable} (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    text TEXT NOT NULL UNIQUE,
+                    level TEXT NOT NULL,
+                    state INTEGER,
+                    ranking INTEGER
+
+                );
+            """)
+
+    def add(self, sentence, translation, wav_path, state=0, ranking=0):
+        with open(wav_path, "rb") as audio_file:
+            audio_blob = audio_file.read()
+
+        try:
+            self.cursor.execute(
+                f"""
+                INSERT INTO {self.WordTable} (sentence, translation, audio, state, ranking)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (sentence, translation, sqlite3.Binary(audio_blob), state, ranking)
+            )
+            self.conn.commit()
+            print("Erfolgreich gespeichert!")
+
+        except sqlite3.IntegrityError:
+            print("Fehler: Dieser Satz existiert bereits (UNIQUE Constraint).")
+
+    def get(self, id_val, output="all"):
+        with self.conn:
+            # Abfrage nach id, passend zu deiner data_sentence Struktur
+            sql = f"SELECT sentence, translation, audio, state, ranking FROM {self.WordTable} WHERE id = ?"
+            self.cursor.execute(sql, (id_val,))
+            row = self.cursor.fetchone()
+
+            if row:
+                word_info = {
+                    "sentence": row[0],
+                    "translation": row[1],
+                    "audio": row[2],  # Das ist das BLOB
+                    "state": row[3],
+                    "ranking": row[4]
+                }
+
+                if output == "all":
+                    return word_info
+                elif output == "translation":
+                    # Falls kein Eintrag oder ein leerer String in Translation steht
+                    if word_info["translation"]:
+                        return word_info["translation"].lower().split("/")
+                    return []
+
+            return None
+
+class sentence:
+    def __init__(self):
+        self.db = "data.db"
         self.WordTable = "data_sentence"
 
         self.conn = sqlite3.connect(self.db, check_same_thread=False)
@@ -85,6 +150,9 @@ class sentence:
 
         for it, de, filename in format_data:
             self.add(sentence=it, translation=de, wav_path=filename)
+
+
+
 
 
 class words:
@@ -259,11 +327,11 @@ class words:
                 sql = f"UPDATE {self.WordTable} SET {var} = {var} + ? WHERE word = ?"
                 self.cursor.execute(sql, (amount, res["word"]))
 
-    def upranking(self, word):
-        self.update_var(word, "ranking", 1)
+    def upranking(self, word, amount):
+        self.update_var(word, "ranking", + amount)
 
-        if self.check_var("word", word, "ranking")[0] >= 10 and self.check_var("word", word, "state")[0] < 4:
-            self.update_var(word, "state", 1)
+        while self.check_var("word", word, "ranking")[0] >= 10 and self.check_var("word", word, "state")[0] < 4:
+            self.update_var(word, "state", +1)
             self.update_var(word, "ranking", -10)
 
     def algo(self, amount=10):
@@ -325,18 +393,47 @@ class words:
 
         return return_list
 
+    def get_all(self):
+        with self.conn:
+            # Keine WHERE-Bedingung, holt einfach alles
+            sql = f"SELECT word, translation, word_type, state, ranking FROM {self.WordTable}"
+            self.cursor.execute(sql)
+            rows = self.cursor.fetchall()
+
+            wordlist = []
+            if rows:
+                for row in rows:
+                    wordlist.append({
+                        "word": row[0],
+                        "translation": row[1],
+                        "word_type": row[2],
+                        "state": row[3],
+                        "ranking": row[4]
+                    })
+            return wordlist
+
 # Ausführungscode (auskommentiert, wie in deinem Original)
-# word = words()
+word = words()
+for i in word.get_all():
+    print(i["word"], i["translation"])
+
+print(len(word.get_all()))
+#print(word.algo(10))
 # imported = word.import_txt()
 
 # for n in imported:
 #    word.add(n)
 
-# print(word.check_var("state", 0, "word"))
+#print(word.check_var("state", 2, "word"))
 # print(word.algo(10))
 
 #sentences = sentence()
 #sentences.tts_import()
+
+#for i in audio_tts.ai.get_vocab_image("img.jpg"):
+#    word.add(i)
+
+
 
 
 
