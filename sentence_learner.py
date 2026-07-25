@@ -1,9 +1,16 @@
 import time
 import streamlit as st
+
+import audio_tts
 import data
+import add_new
+import progres
+
 
 
 # --- Hilfsfunktionen ---
+progres.vocab_progres()
+
 def spacer(height_px):
     st.markdown(f'<div style="margin-top: {height_px}px;"></div>', unsafe_allow_html=True)
 
@@ -85,4 +92,13 @@ else:
     # Standard-Anzeige ohne Autoplay
     render_eintrag(st.session_state.eintragnummer, use_autoplay=False)
 
+
+
 st.sidebar.text(f"Aktuelle Nummer: {st.session_state.eintragnummer}")
+
+
+with st.popover("Add new.", use_container_width=True):
+    add_new.add_new()
+    inputtext = st.text_area("wow")
+    if inputtext:
+        print(audio_tts.it_import_from_textarea(inputtext))
